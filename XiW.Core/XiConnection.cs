@@ -1,14 +1,17 @@
 ﻿using System;
-using System.Collections.Generic;
 using System.Diagnostics;
 using System.IO;
-using System.Threading.Tasks;
+using System.Text;
+using System.Threading;
+using Jil;
 
 namespace XiW.Core
 {
     public class XiConnection : IDisposable
     {
-        private Stream _input;
+        private readonly Stream _input;
+        private long id = 0;
+        public EventHandler<DataReceivedEventArgs> OnError;
 
         public XiConnection(string filename)
         {
@@ -19,39 +22,59 @@ namespace XiW.Core
                 RedirectStandardError = true,
                 RedirectStandardInput = true,
                 RedirectStandardOutput = true,
-                UseShellExecute = false
+                UseShellExecute = false,
+                StandardErrorEncoding = Encoding.UTF8,
+                StandardOutputEncoding = Encoding.UTF8
             };
             p.StartInfo = info;
+            p.EnableRaisingEvents = true;
             p.OutputDataReceived += ReceiveData;
-            p.ErrorDataReceived += (sender, args) => { Debug.Write(args.Data); };
-            _input = p.StandardInput.BaseStream;
+            p.ErrorDataReceived += ReceiveError;
             p.Start();
+            p.BeginErrorReadLine();
+            p.BeginOutputReadLine();
 
+            _input = p.StandardInput.BaseStream;
+        }
+
+        private void ReceiveError(object sender, DataReceivedEventArgs e)
+        {
+            Console.WriteLine(e.Data);
+            OnError?.Invoke(this, e);
         }
 
         private void ReceiveData(object sender, DataReceivedEventArgs e)
         {
-            Jil.JSON.Deserialize<object>(e.Data);
+            Console.WriteLine(e.Data);
+            if (e.Data != null)
+            {
+                var x = JSON.Deserialize<object>(e.Data);
+            }
         }
 
 
-        public Task Send(string method, object parameters)
+        public void Send(string method, object @params)
         {
-            byte[] array = new Byte[65000];
+            var req = new { method, @params, id = Interlocked.Increment(ref id) };
 
-            var req = new Dictionary<string, dynamic> { { "method", method }, { "params", parameters } };
-            //if (callback != null)
+            //using (TextWriter writer = new StreamWriter(_input, Encoding.UTF8, 41, true))
             //{
-            //    req.Add("id", rpcIndex);
-            //    var index = rpcIndex;
-            //    rpcIndex++;
-            //    pending.Add(index, callback);
+            //    JSON.Serialize(req, writer);
+            //    writer.Write('\n');
+            //    writer.Flush();
             //}
 
-            TextWriter writer = new StreamWriter(new MemoryStream(array));
-            Jil.JSON.Serialize(req, writer);
+            StringBuilder sb = new StringBuilder(100);
+            using (TextWriter writer = new StringWriter(sb))
+            {
+                JSON.Serialize(req, writer);
+            }
 
-            return _input.WriteAsync(array, 0, array.Length);
+            sb.Append('\n'); // important!
+
+            byte[] y = Encoding.UTF8.GetBytes(sb.ToString());
+            _input.Write(y, 0, y.Length);
+            _input.Flush();
         }
 
         public void Dispose()

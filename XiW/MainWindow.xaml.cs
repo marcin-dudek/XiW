@@ -12,6 +12,7 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
+using XiW.Core;
 
 namespace XiW
 {
@@ -20,9 +21,14 @@ namespace XiW
     /// </summary>
     public partial class MainWindow : Window
     {
+        private readonly XiConnection _xiConnection;
+
         public MainWindow()
         {
             InitializeComponent();
+
+            _xiConnection = new XiConnection(@"C:\src\XiW\xi-core\xi-core.exe");
+            _xiConnection.Send(Method.New, new { });
         }
     }
 }

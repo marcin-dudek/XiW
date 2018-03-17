@@ -93,5 +93,11 @@
   <ItemGroup>
     <None Include="App.config" />
   </ItemGroup>
+  <ItemGroup>
+    <ProjectReference Include="..\XiW.Core\XiW.Core.csproj">
+      <Project>{9f92875c-cc6c-4900-ae2f-6e00b9283c2c}</Project>
+      <Name>XiW.Core</Name>
+    </ProjectReference>
+  </ItemGroup>
   <Import Project="$(MSBuildToolsPath)\Microsoft.CSharp.targets" />
 </Project>
